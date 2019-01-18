@@ -1,9 +1,16 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const CompressionPlugin = require('compression-webpack-plugin');
 const S3Plugin = require('webpack-s3-plugin');
 const AWS = require('aws-sdk');
-// require('dotenv').config();
+const pjson = require('./package.json');
+
+const BUCKET = "myBucket";
+
+// For versioning of .css files
+const versionNumber = pjson.version
+    .split("")
+    .filter(i => i !== ".")
+    .join("");
 
 module.exports = {
     entry: './src/index.js',
@@ -25,32 +32,16 @@ module.exports = {
             inject: true,
             template: `./src/index.html`,
         }),
-        new CompressionPlugin({
-            test: /\.(css)$/,
-            filename: '[path].gz[query]',
-            algorithm: 'gzip',
-        }),
         new S3Plugin({
+            include: /.*\.(css)/, // Include only .css files
             s3Options: {
               credentials: new AWS.SharedIniFileCredentials({profile: 'default'}),
-              region: 'us-east-1' // The region of your S3 bucket
+              region: 'us-east-1'
             },
             s3UploadOptions: {
-              Bucket: 'shawntoubeau', // Your bucket name
-              // Here we set the Content-Encoding header for all the gzipped files to 'gzip'
-              ContentEncoding(fileName) {
-                if (/\.gz/.test(fileName)) {
-                  return 'gzip'
-                }
-              },
-              // Here we set the Content-Type header for the gzipped files to their appropriate values, so the browser can interpret them properly
-              ContentType(fileName) {
-                if (/\.css/.test(fileName)) {
-                  return 'text/css'
-                }
-              }
+              Bucket: BUCKET,
             },
-            basePath: 'my-dist', // This is the name the uploaded directory will be given
+            basePath: `common-css/${versionNumber}`, // This is the name the uploaded directory will be given
             directory: './src' // This is the directory you want to upload
           })
     ]
